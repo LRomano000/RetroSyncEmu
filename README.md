@@ -1,5 +1,7 @@
 # RetroSync
 
+📋 **Para testar, siga o [PASSO-A-PASSO.md](PASSO-A-PASSO.md).**
+
 Emulador pessoal de **Game Boy, Game Boy Color, Game Boy Advance e Super Nintendo** que roda no
 navegador (Chrome/Edge) e pode ser instalado como app no Android, Windows e macOS.
 Todas as ROMs, saves e save states ficam **no seu Google Drive**. Não existe servidor: o app
