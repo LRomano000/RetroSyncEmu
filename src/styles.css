@@ -150,7 +150,7 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); }
 .overlay-box { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 24px; text-align: center; max-width: 420px; }
 .spinner { width: 36px; height: 36px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.game-menu { background: var(--bg2); border: 1px solid var(--line); border-radius: 16px; width: min(92vw, 520px); max-height: 88vh; display: flex; flex-direction: column; }
+.game-menu { background: var(--bg2); border: 1px solid var(--line); border-radius: 16px; width: min(92vw, 520px); max-height: 92vh; display: flex; flex-direction: column; overflow-y: auto; }
 .game-menu .sync-badge { max-width: 45%; }
 .menu-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 16px 16px; }
 .menu-scroll { padding: 8px 16px 16px; overflow-y: auto; }
@@ -197,3 +197,39 @@ body.gp-nav :is(button, select, input, a):focus { outline: 3px solid var(--accen
 body.gp-nav .tile-play:focus .tile-art { box-shadow: 0 0 0 3px var(--accent2) inset; }
 
 @media (max-width: 640px) { .chips { flex-basis: 100%; } }
+
+/* Controles na tela */
+.touch-controls {
+  position: absolute; inset: 0; z-index: 4; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none;
+  --u: calc(min(9vw, 9vh) * var(--tc-scale, 1)); /* unidade base */
+  font-family: system-ui, sans-serif; font-weight: 700; color: #fff;
+}
+.touch-controls > * { pointer-events: auto; opacity: var(--tc-opacity, .5); }
+.tc-btn { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.55); font-size: calc(var(--u) * .5); width: calc(var(--u) * 1.5); height: calc(var(--u) * 1.5); }
+.tc-dpad { position: absolute; left: calc(var(--u) * .6 + env(safe-area-inset-left)); bottom: calc(var(--u) * 1.6 + env(safe-area-inset-bottom)); width: calc(var(--u) * 4.2); height: calc(var(--u) * 4.2); border-radius: 50%; background: rgba(255,255,255,.08); }
+.tc-arrow { position: absolute; width: 30%; height: 30%; background: rgba(255,255,255,.25); border: 2px solid rgba(255,255,255,.5); box-sizing: border-box; }
+.tc-up { top: 2%; left: 35%; border-radius: 20% 20% 4px 4px; }
+.tc-down { bottom: 2%; left: 35%; border-radius: 4px 4px 20% 20%; }
+.tc-left { left: 2%; top: 35%; border-radius: 20% 4px 4px 20%; }
+.tc-right { right: 2%; top: 35%; border-radius: 4px 20% 20% 4px; }
+.tc-actions { position: absolute; right: calc(var(--u) * .6 + env(safe-area-inset-right)); bottom: calc(var(--u) * 1.6 + env(safe-area-inset-bottom)); width: calc(var(--u) * 4.2); height: calc(var(--u) * 4.2); }
+.tc-actions .tc-btn { position: absolute; }
+.tc-a { right: 0; top: 30%; }
+.tc-b { left: 18%; bottom: 0; }
+.snes .tc-a { right: 0; top: 32%; }
+.snes .tc-b { left: 32%; bottom: 0; }
+.snes .tc-x { left: 32%; top: 0; }
+.snes .tc-y { left: 0; top: 32%; }
+.tc-l { left: calc(var(--u) * .6 + env(safe-area-inset-left)); top: calc(var(--u) * .6 + env(safe-area-inset-top)); width: calc(var(--u) * 2.6); height: calc(var(--u) * 1.1); border-radius: calc(var(--u) * .4); }
+.tc-r { right: calc(var(--u) * .6 + env(safe-area-inset-right)); top: calc(var(--u) * .6 + env(safe-area-inset-top)); width: calc(var(--u) * 2.6); height: calc(var(--u) * 1.1); border-radius: calc(var(--u) * .4); }
+.tc-meta { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--u) * .5 + env(safe-area-inset-bottom)); display: flex; gap: calc(var(--u) * .8); }
+.tc-pill { position: static; width: calc(var(--u) * 2.2); height: calc(var(--u) * .8); border-radius: 999px; font-size: calc(var(--u) * .3); }
+.menu-fab.touch { opacity: .85; left: 50%; right: auto; transform: translateX(-50%); }
+/* Em pé: jogo no topo, controles na área livre abaixo */
+@media (orientation: portrait) {
+  .screen { align-items: flex-start; }
+  .screen canvas { height: auto; aspect-ratio: var(--aspect); max-height: 100%; }
+  .tc-l, .tc-r { top: auto; bottom: calc(var(--u) * 6.3 + env(safe-area-inset-bottom)); }
+}
+.menu-sub { font-size: .95rem; margin: 16px 0 8px; }
+input[type=range] { padding: 0; min-height: 32px; accent-color: var(--accent); }

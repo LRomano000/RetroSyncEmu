@@ -10,6 +10,7 @@ import { restoreBackup, type StateInfo } from '../library/saves'
 import { requestSync } from '../sync/engine'
 import { BackupsList, GameSettingsEditor, StatesList } from './GameParts'
 import { SyncBadge } from './SyncBadge'
+import { TouchControls, isTouchDevice, loadTouchSettings, saveTouchSettings, type TouchSettings } from './TouchControls'
 import { showToast, view } from './store'
 
 type Panel = 'main' | 'states' | 'backups' | 'settings'
@@ -22,6 +23,9 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
   const [error, setError] = useState('')
   const [menu, setMenu] = useState(false)
   const [panel, setPanel] = useState<Panel>('main')
+  const [touch, setTouchRaw] = useState<TouchSettings>(loadTouchSettings)
+  const setTouch = (patch: Partial<TouchSettings>) => setTouchRaw(t => { const n = { ...t, ...patch }; saveTouchSettings(n); return n })
+  const touchOn = touch.mode === 'on' || (touch.mode === 'auto' && isTouchDevice())
   const title = p.rom.fileName.replace(/\.[^.]+$/, '')
 
   const openMenu = () => { sessionRef.current?.pause(); setPanel('main'); setMenu(true) }
@@ -110,15 +114,16 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
   }, [menu, panel])
 
   const fit = () => {
-    const w = wrapRef.current
-    if (!w || !sessionRef.current) return
+    const c = canvasRef.current
+    if (!c || !sessionRef.current) return
     const dpr = window.devicePixelRatio || 1
-    sessionRef.current.resize(Math.round(w.clientWidth * dpr), Math.round(w.clientHeight * dpr))
+    sessionRef.current.resize(Math.round(c.clientWidth * dpr), Math.round(c.clientHeight * dpr))
   }
 
   useEffect(() => {
     const ro = new ResizeObserver(fit)
     if (wrapRef.current) ro.observe(wrapRef.current)
+    if (canvasRef.current) ro.observe(canvasRef.current)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); menuOpen.current ? closeMenu() : openMenu() }
     }
@@ -147,7 +152,10 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
       <div class="screen" ref={wrapRef}>
         <canvas ref={canvasRef} id="emu-canvas" tabIndex={0} style={{ '--aspect': String(SYSTEMS[p.rom.system].aspect) } as any} />
       </div>
-      {!loading && !error && <button class="menu-fab" onClick={openMenu} aria-label="Menu do jogo">☰</button>}
+      {!loading && !error && touchOn && !menu && (
+        <TouchControls system={p.rom.system} settings={touch} press={(b, d) => sessionRef.current?.press(b, d)} />
+      )}
+      {!loading && !error && <button class={`menu-fab ${touchOn ? 'touch' : ''}`} onClick={openMenu} aria-label="Menu do jogo">☰</button>}
       {(loading || error) && (
         <div class="overlay">
           {error ? (
@@ -207,6 +215,22 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
             {panel === 'settings' && (
               <div class="menu-scroll">
                 <GameSettingsEditor gameKey={sessionRef.current!.gameKey} onSaved={s => sessionRef.current?.applySettings(s)} />
+                <h3 class="menu-sub">Controles na tela (este aparelho)</h3>
+                <div class="form">
+                  <label>Mostrar
+                    <select value={touch.mode} onChange={e => setTouch({ mode: (e.target as HTMLSelectElement).value as TouchSettings['mode'] })}>
+                      <option value="auto">Automático (só em telas de toque)</option>
+                      <option value="on">Sempre</option>
+                      <option value="off">Nunca</option>
+                    </select>
+                  </label>
+                  <label>Tamanho: {Math.round(touch.scale * 100)}%
+                    <input type="range" min="0.6" max="1.6" step="0.05" value={touch.scale} onInput={e => setTouch({ scale: Number((e.target as HTMLInputElement).value) })} />
+                  </label>
+                  <label>Opacidade: {Math.round(touch.opacity * 100)}%
+                    <input type="range" min="0.15" max="1" step="0.05" value={touch.opacity} onInput={e => setTouch({ opacity: Number((e.target as HTMLInputElement).value) })} />
+                  </label>
+                </div>
               </div>
             )}
           </div>

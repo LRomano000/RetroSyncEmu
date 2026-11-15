@@ -1,5 +1,5 @@
 import { Nostalgist } from 'nostalgist'
-import { CORE_SAVE_DIR, SRAM_POLL_MS, SYSTEMS, type CoreId } from '../config'
+import { CORE_SAVE_DIR, SRAM_POLL_MS, SYSTEMS, type CoreId, type PadButton } from '../config'
 import { getFile } from '../lib/db'
 import { sleep } from '../lib/util'
 import { gameKeyOf, gameSettings, updateLibrary, type GameSettings, type RomEntry } from '../library/library'
@@ -208,6 +208,13 @@ export class GameSession {
    * Pausa/despausa com os comandos explícitos do RetroArch. O pause()/resume() do Nostalgist usa
    * "alternar pausa", que se inverte quando o RetroArch muda o estado sozinho (ex.: ao carregar um state).
    */
+  /** Botão virtual (controles na tela). */
+  press(btn: PadButton, down: boolean) {
+    if (this.closed || !this.n) return
+    if (down) this.n.pressDown(btn)
+    else this.n.pressUp(btn)
+  }
+
   pause() {
     this.paused = true
     this.pad?.setMode('ui')

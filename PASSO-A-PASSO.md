@@ -74,7 +74,6 @@ No repositório https://github.com/LRomano000/RetroSyncEmu:
 3. A biblioteca aparece com as ROMs do PC marcadas como **☁ na nuvem**.
 4. Toque no jogo que você jogou no PC: ele baixa a ROM e abre **no ponto em que você parou no PC**.
 5. Menu ⋮ do Chrome → **Instalar app**. Abra pelo ícone na tela inicial e use **☰ → Tela cheia**.
-   (Controles na tela só chegam na Fase 3; por enquanto use um controle Bluetooth.)
 6. Jogue, salve e saia. Volte ao PC, toque no indicador de sync e abra o jogo: o progresso do celular está lá.
 
 ## Etapa 5 — Testes de segurança dos saves

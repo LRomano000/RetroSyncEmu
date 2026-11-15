@@ -158,6 +158,9 @@ funcionam sem conexão. Tudo que você jogar offline é sincronizado quando a in
   só o save do jogo, ou nada. "Nada / Começar do zero" guarda o save atual em Backups antes.
 - **Backups do save**: cópia da SRAM no intervalo escolhido (10 s a 30 min), só quando mudou,
   mantendo os N mais recentes. Restaurar reinicia o jogo com aquele save, guardando o atual antes.
+- **Controles na tela** (celular/tablet): aparecem sozinhos em telas de toque. Tamanho, opacidade e
+  mostrar/ocultar ficam em **☰ → Configurações deste jogo → Controles na tela**. Em pé, o jogo fica
+  no topo e os botões embaixo; deitado, os botões ficam sobre as bordas.
 - **Pastas**: escolha um sistema (GB, GBC, GBA ou SNES) e use **＋ Nova pasta**. Para colocar um jogo
   numa pasta: **⋯ → Jogo → Pasta**. Apagar uma pasta não apaga os jogos, só os tira dela.
 - **Grade ou lista**: botões ▦ / ☰ na barra da biblioteca.

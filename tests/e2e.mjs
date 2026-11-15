@@ -318,6 +318,38 @@ check((await C.page.locator('.game-menu').count()) === 0, 'Gamepad: botão A con
 await exitGame(C.page)
 await waitSynced(C.page)
 
+// ---------- Controles na tela (aparelho com toque) ----------
+const T = await (async () => {
+  const ctx = await browser.newContext({ viewport: { width: 900, height: 420 }, hasTouch: true, isMobile: true })
+  await ctx.addInitScript(() => { localStorage.setItem('rs.clientId', 'fake'); localStorage.setItem('rs.device', 'Tablet-T') })
+  await attachFakes(ctx, drive)
+  const page = await ctx.newPage()
+  page.on('dialog', d => d.accept())
+  await page.goto(BASE)
+  await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 30000 })
+  return { ctx, page }
+})()
+await T.page.getByRole('button', { name: 'Entrar com Google' }).first().click()
+await T.page.waitForSelector('.banner', { state: 'detached' })
+await waitSynced(T.page)
+await play(T.page, 'Teste GB', 500)
+check((await T.page.locator('.touch-controls').count()) === 1, 'Toque: controles na tela aparecem em aparelho com toque')
+// Segura o botão A virtual e lê a SRAM (o jogo de teste grava o estado dos botões em SRAM[3]).
+const touchByte = await T.page.evaluate(async () => {
+  const a = document.querySelector('.tc-a'); const r = a.getBoundingClientRect()
+  const ev = (type, id) => new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true, isPrimary: true })
+  document.querySelector('.touch-controls').dispatchEvent(ev('pointerdown', 7))
+  await new Promise(r => setTimeout(r, 700))
+  await window.__rsSession.flushSram()
+  document.querySelector('.touch-controls').dispatchEvent(ev('pointerup', 7))
+  const db = await new Promise(r => { const q = indexedDB.open('retrosync'); q.onsuccess = () => r(q.result) })
+  const f = await new Promise(r => { const q = db.transaction('files').objectStore('files').get('Saves/gbc/Teste GB.srm'); q.onsuccess = () => r(q.result) })
+  return new Uint8Array(await f.blob.arrayBuffer())[3]
+})
+check(touchByte === 0xDE, `Toque: botão A virtual chega ao jogo (SRAM[3]=0x${touchByte?.toString(16)})`)
+await T.page.screenshot({ path: 'tests/last-touch.png' })
+await exitGame(T.page)
+
 await A.page.screenshot({ path: process.env.SHOT || 'tests/last-library.png' })
 console.log('\nArquivos no Drive falso:\n  ' + drive.listPaths().join('\n  '))
 await browser.close()
