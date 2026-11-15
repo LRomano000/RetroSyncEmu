@@ -34,24 +34,34 @@ export function spatialMove(root: HTMLElement, dir: Dir): boolean {
   if (!cur || !items.includes(cur)) { focusEl(items[0]); return true }
   const a = cur.getBoundingClientRect()
   const ac = { x: a.left + a.width / 2, y: a.top + a.height / 2 }
+  // 1ª escolha: elementos que se sobrepõem no eixo lateral (mesma coluna ao descer/subir,
+  // mesma linha ao ir para os lados), o mais próximo à frente. 2ª: o mais próximo em distância.
   let best: HTMLElement | null = null
   let bestScore = Infinity
+  let bestOverlap: HTMLElement | null = null
+  let bestOverlapFwd = Infinity
   for (const el of items) {
     if (el === cur) continue
     const b = el.getBoundingClientRect()
     const bc = { x: b.left + b.width / 2, y: b.top + b.height / 2 }
     const dx = bc.x - ac.x, dy = bc.y - ac.y
-    // Deslocamento "para frente" na direção pedida e desvio lateral.
-    const forward = dir === 'down' ? dy : dir === 'up' ? -dy : dir === 'right' ? dx : -dx
-    const side = dir === 'down' || dir === 'up' ? Math.abs(dx) : Math.abs(dy)
-    if (forward <= 4) continue
-    // Sobreposição no eixo lateral favorece quem está "na mesma coluna/linha".
-    const overlap = dir === 'down' || dir === 'up'
-      ? Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left))
-      : Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top))
-    const score = forward + side * 2.5 - (overlap > 0 ? 100 : 0)
+    const vertical = dir === 'down' || dir === 'up'
+    // Para frente: a borda mais próxima do candidato precisa estar além do centro do atual.
+    const forward = dir === 'down' ? b.top - ac.y : dir === 'up' ? ac.y - b.bottom : dir === 'right' ? b.left - ac.x : ac.x - b.right
+    if (forward < -2) continue
+    const side = vertical ? Math.abs(dx) : Math.abs(dy)
+    const overlap = vertical
+      ? Math.min(a.right, b.right) - Math.max(a.left, b.left)
+      : Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+    if (overlap > 0) {
+      // Desempate entre candidatos à mesma distância (ex.: botões lado a lado): o mais alinhado.
+      const f = Math.max(forward, 0) + side * 0.05
+      if (f < bestOverlapFwd) { bestOverlapFwd = f; bestOverlap = el }
+    }
+    const score = Math.max(forward, 0) + side * 2
     if (score < bestScore) { bestScore = score; best = el }
   }
+  if (bestOverlap) best = bestOverlap
   if (!best) return false
   focusEl(best)
   return true

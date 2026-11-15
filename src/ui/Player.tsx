@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { SYSTEMS } from '../config'
 import { authState } from '../drive/auth'
 import type { UiAction } from '../emulator/gamepad'
+import { spatialMove } from './gamepadNav'
 import { GameSession } from '../emulator/session'
 import { sleep } from '../lib/util'
 import type { RomEntry } from '../library/library'
@@ -80,17 +81,17 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
     const items = [...root.querySelectorAll<HTMLElement>('button, select, input')].filter(el => !el.hasAttribute('disabled') && el.offsetParent !== null)
     if (!items.length) return
     const active = document.activeElement as HTMLElement | null
-    let i = items.indexOf(active!)
+    const i = items.indexOf(active!)
     const focus = (el: HTMLElement) => { el.focus(); el.scrollIntoView({ block: 'nearest' }) }
-    if (a === 'up' || a === 'down') {
-      if (i < 0) i = a === 'down' ? -1 : 0
-      focus(items[(i + (a === 'down' ? 1 : items.length - 1)) % items.length])
-    } else if (a === 'left' || a === 'right') {
-      if (active instanceof HTMLSelectElement) {
+    if (a === 'up' || a === 'down' || a === 'left' || a === 'right') {
+      if ((a === 'left' || a === 'right') && active instanceof HTMLSelectElement) {
         const n = active.options.length
         active.selectedIndex = (active.selectedIndex + (a === 'right' ? 1 : n - 1)) % n
         active.dispatchEvent(new Event('change', { bubbles: true }))
-      } else if (i < 0) focus(items[0])
+        return
+      }
+      if (i < 0) focus(items[0])
+      else spatialMove(root, a)
     } else if (a === 'confirm') {
       if (i < 0) focus(items[0])
       else if (active instanceof HTMLInputElement && active.type === 'checkbox') active.click()

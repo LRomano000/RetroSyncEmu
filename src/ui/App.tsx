@@ -22,6 +22,7 @@ export function App() {
           <button class="brand" onClick={() => (view.value = { name: 'library' })}>
             <img src={`${import.meta.env.BASE_URL}icons/icon.svg`} alt="" width="28" height="28" />
             <span>RetroSync</span>
+            <small class="version">v{__APP_VERSION__}</small>
           </button>
           <div class="spacer" />
           <SyncBadge />

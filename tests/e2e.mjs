@@ -258,10 +258,34 @@ check(reached, 'Gamepad: direcional leva o foco até um jogo na biblioteca')
 await tap(1)
 await C.page.waitForSelector('.menu-fab', { timeout: 60000 })
 check(true, 'Gamepad: A abre o jogo focado')
+// Dentro do menu: "Carregar state…" tem botões lado a lado (Carregar / Apagar); direita deve ir ao vizinho.
+await C.page.keyboard.press('Escape')
+await C.page.getByRole('button', { name: 'Salvar state' }).click()
+await C.page.waitForSelector('.toast:has-text("Save state criado")')
+await C.page.getByRole('button', { name: 'Carregar state…' }).click()
+await C.page.waitForSelector('.state-row')
+await sleep(300)
+await tap(13) // baixo: sai do cabeçalho e cai no primeiro botão do state
+const names = []
+for (let k = 0; k < 3; k++) { names.push(await C.page.evaluate(() => document.activeElement?.textContent?.trim())); await tap(15) }
+check(names.includes('Carregar') && names.includes('Apagar'), `Gamepad: direita navega entre botões lado a lado no menu (${names.join(' > ')})`)
+await C.page.keyboard.press('Escape')
+await C.page.waitForSelector('.game-menu', { state: 'detached' })
 await C.page.keyboard.press('Escape')
 await C.page.getByRole('button', { name: 'Sair do jogo' }).click()
 await C.page.waitForSelector('.library')
 await C.page.evaluate(() => { window.__press = -1 })
+// Configurações: descendo com o controle, todos os botões "Mudar" do mapeamento são alcançados.
+await C.page.getByRole('button', { name: 'Configurações' }).click()
+await C.page.waitForSelector('.settings')
+await C.page.evaluate(() => document.activeElement?.blur())
+await tap(1)
+const seen2 = new Set()
+for (let k = 0; k < 45; k++) { await tap(13, 60); seen2.add(await C.page.evaluate(() => { const a = document.activeElement; return a.tagName + ':' + (a.getAttribute('aria-label') || a.textContent || '').trim().slice(0, 15) + ':' + Math.round(a.getBoundingClientRect().top + scrollY) })) }
+const mudar = [...seen2].filter(x => x.includes('Mudar')).length
+check(mudar >= 10, `Gamepad: descendo nas configurações passa pelos ${mudar} botões "Mudar" (esperado ≥10) e por ${seen2.size} itens no total`)
+await tap(0) // B volta à biblioteca
+check((await C.page.locator('.library').count()) === 1, 'Gamepad: B sai das configurações')
 await play(C.page, 'Teste GB', 500)
 await C.page.evaluate(() => { window.__press = true })
 await sleep(1500)

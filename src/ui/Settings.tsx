@@ -35,7 +35,8 @@ export function Settings() {
 
   useEffect(() => {
     void (async () => {
-      const persisted = (await navigator.storage?.persisted?.()) ?? false
+      // Pede de novo ao abrir: o Chrome concede sozinho depois que o app é instalado ou usado com frequência.
+      const persisted = (await navigator.storage?.persisted?.()) || ((await navigator.storage?.persist?.()) ?? false)
       const est = (await navigator.storage?.estimate?.()) ?? {}
       setStorage({ persisted, usage: est.usage ?? 0, quota: est.quota ?? 0 })
       setUsage(await usageBySystem())
@@ -110,6 +111,7 @@ export function Settings() {
         {storage ? (
           <p>{formatBytes(storage.usage)} usados de {formatBytes(storage.quota)}.<br />
             Armazenamento persistente: <b>{storage.persisted ? 'sim' : 'não'}</b>
+            <span class="muted small"> — {storage.persisted ? 'o navegador não apaga os dados do app para liberar espaço.' : 'sem isso, o navegador pode apagar ROMs baixadas e saves ainda não sincronizados se o disco encher. O Chrome concede automaticamente depois de instalar o app ou usá-lo por alguns dias.'}</span>
             {!storage.persisted && <> <button class="btn small" onClick={async () => {
               const ok = await navigator.storage?.persist?.()
               showToast(ok ? 'Armazenamento persistente ativado' : 'O navegador recusou. Instale o app (Adicionar à tela inicial) e tente de novo.', ok ? 'info' : 'error', 6000)
