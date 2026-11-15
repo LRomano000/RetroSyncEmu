@@ -153,13 +153,20 @@ funcionam sem conexão. Tudo que você jogar offline é sincronizado quando a in
 - **Menu do jogo**: botão ☰ no canto, tecla **Esc** ou botão **Home/Guide** do controle.
   Lá ficam: salvar/carregar state, backups do save, configurações do jogo, tela cheia, reiniciar e sair.
 - **Saves do jogo (SRAM)**: gravados automaticamente a cada 10 s quando mudam, e ao sair.
-- **Autosave**: save state automático no intervalo escolhido (30 s a 5 min) e ao sair.
+- **Autosave**: save state automático no intervalo escolhido (30 s a 30 min) e ao sair.
 - **Ao abrir o jogo, carregar**: último state (auto ou manual), último autosave, último manual,
   só o save do jogo, ou nada. "Nada / Começar do zero" guarda o save atual em Backups antes.
-- **Backups do save**: cópia da SRAM no intervalo escolhido (10 s a 5 min), só quando mudou,
+- **Backups do save**: cópia da SRAM no intervalo escolhido (10 s a 30 min), só quando mudou,
   mantendo os N mais recentes. Restaurar reinicia o jogo com aquele save, guardando o atual antes.
+- **Pastas**: escolha um sistema (GB, GBC, GBA ou SNES) e use **＋ Nova pasta**. Para colocar um jogo
+  numa pasta: **⋯ → Jogo → Pasta**. Apagar uma pasta não apaga os jogos, só os tira dela.
+- **Grade ou lista**: botões ▦ / ☰ na barra da biblioteca.
 - **Controle**: ⚙ Configurações → Controle. Escolha o sistema, toque em **Mudar** e aperte o botão
-  desejado. O analógico esquerdo funciona como direcional.
+  desejado. O analógico esquerdo funciona como direcional. Fora do jogo, o controle navega o app:
+  direcional move o foco, **A** confirma, **B** volta/fecha. Com o menu do jogo aberto, o mesmo vale
+  para o menu e nenhum botão chega ao jogo. (Caixas de texto, como o nome de uma pasta, ainda pedem teclado.)
+- **Aplicar para todos os jogos** (⚙ → Padrões): remove as configurações individuais de cada jogo,
+  para todos seguirem os padrões. Os intervalos vão de 30 s a 30 min; o padrão é 10 min.
 - **Teclado** (fixo): setas = direcional · X = A · Z = B · S = X · A = Y · Q = L · W = R ·
   Enter = Start · Shift direito = Select · Esc = menu.
 

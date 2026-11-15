@@ -23,7 +23,7 @@ async function device(name) {
   const page = await ctx.newPage()
   page.on('pageerror', e => console.log(`[${name}] PAGEERROR`, e.message))
   page.on('console', m => { if (m.text().startsWith('[sync] conflito')) console.log(`[${name}]`, m.text()); if (m.type() === 'error' && !m.text().includes('favicon')) console.log(`[${name}] console.error`, m.text().slice(0, 300)) })
-  page.on('dialog', d => d.accept())
+  page.on('dialog', d => d.type() === 'prompt' ? d.accept('Favoritos') : d.accept())
   await page.goto(BASE)
   if (!process.env.NO_SW) await page.waitForFunction(() => navigator.serviceWorker?.controller, null, { timeout: 30000 })
   return { ctx, page, name }
@@ -196,14 +196,45 @@ await waitSynced(A.page)
 await A.page.waitForFunction(() => [...document.querySelectorAll('.tile')].some(t => t.textContent.includes('Teste GB') && t.textContent.includes('GBC') && !t.textContent.includes('Teste GBC')))
 check(true, 'A: vê a ROM como GBC após sync')
 
+// ---------- Pastas e visualização em lista ----------
+await A.page.locator('.chip', { hasText: 'GBA' }).click()
+await A.page.getByRole('button', { name: 'Nova pasta' }).click()
+await A.page.waitForSelector('.folder-title:has-text("Favoritos")')
+check(true, 'Pastas: criar pasta entra nela')
+await A.page.locator('.folder-bar .btn.ghost').click() // volta ao sistema
+await tile(A.page, 'Teste GBA').getByRole('button', { name: 'Mais opções' }).click()
+await A.page.locator('.modal select').nth(1).selectOption({ label: 'Favoritos' })
+await sleep(300)
+await A.page.getByRole('button', { name: 'Fechar' }).click()
+check((await A.page.locator('.tile').count()) === 0 && (await A.page.locator('.folder-chip', { hasText: 'Favoritos' }).textContent()).includes('1'), 'Pastas: jogo saiu da raiz do sistema e a pasta mostra 1')
+await A.page.locator('.folder-chip', { hasText: 'Favoritos' }).click()
+check((await tile(A.page, 'Teste GBA').count()) === 1, 'Pastas: jogo aparece dentro da pasta')
+await A.page.getByRole('button', { name: 'Lista', exact: true }).click()
+check((await A.page.locator('.rom-row').count()) === 1 && (await A.page.locator('.rom-row').textContent()).includes('Favoritos'), 'Lista: visualização em lista mostra o jogo e a pasta')
+await A.page.getByRole('button', { name: 'Grade', exact: true }).click()
+await A.page.getByRole('button', { name: 'Apagar pasta' }).click()
+await sleep(300)
+check((await A.page.locator('.folder-chip').count()) === 0 && (await tile(A.page, 'Teste GBA').count()) === 1, 'Pastas: apagar pasta mantém o jogo')
+await waitSynced(A.page)
+await waitSynced(B.page)
+const libB = JSON.parse(await B.page.evaluate(async () => {
+  const db = await new Promise(r => { const q = indexedDB.open('retrosync'); q.onsuccess = () => r(q.result) })
+  const f = await new Promise(r => { const q = db.transaction('files').objectStore('files').get('library.json'); q.onsuccess = () => r(q.result) })
+  return f.blob.text()
+}))
+check(Object.values(libB.folders).some(f => f.name === 'Favoritos' && f.deleted), 'Pastas: alteração chegou ao outro aparelho pelo library.json')
+await A.page.locator('.chip', { hasText: 'Todos' }).click()
+
 // ---------- Controle (Gamepad API simulado) ----------
 const C = await (async () => {
   const ctx = await browser.newContext()
   await ctx.addInitScript(() => {
     localStorage.setItem('rs.clientId', 'fake'); localStorage.setItem('rs.device', 'PC-C')
     // Controle falso: botão 1 (direita = A no layout Nintendo) apertado enquanto window.__press
+    // window.__press = true aperta o botão 1 (A); um número aperta esse índice.
+    const idx = () => window.__press === true ? 1 : typeof window.__press === 'number' ? window.__press : -1
     navigator.getGamepads = () => [{ id: 'Controle Falso', connected: true, index: 0, mapping: 'standard', axes: [0, 0],
-      buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: !!window.__press && i === 1, value: window.__press && i === 1 ? 1 : 0 })) }]
+      buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: i === idx(), value: i === idx() ? 1 : 0 })) }]
     window.GamepadEvent = class extends Event { constructor(t, init) { super(t); this.gamepad = init && init.gamepad } }
   })
   await attachFakes(ctx, drive)
@@ -216,6 +247,21 @@ const C = await (async () => {
 await C.page.getByRole('button', { name: 'Entrar com Google' }).first().click()
 await C.page.waitForSelector('.banner', { state: 'detached' })
 await waitSynced(C.page)
+// Navegação da biblioteca pelo controle: A foca o primeiro item, "baixo" até chegar num jogo, A abre.
+const tap = async (i, ms = 120) => { await C.page.evaluate(i => { window.__press = i }, i); await sleep(ms); await C.page.evaluate(() => { window.__press = -1 }); await sleep(250) }
+await C.page.evaluate(() => document.activeElement?.blur())
+await tap(1)
+check(await C.page.evaluate(() => document.activeElement?.classList.contains('brand')), 'Gamepad: A sem foco foca o primeiro item')
+let reached = false
+for (let k = 0; k < 8 && !reached; k++) { await tap(13); reached = await C.page.evaluate(() => document.activeElement?.classList.contains('tile-play')) }
+check(reached, 'Gamepad: direcional leva o foco até um jogo na biblioteca')
+await tap(1)
+await C.page.waitForSelector('.menu-fab', { timeout: 60000 })
+check(true, 'Gamepad: A abre o jogo focado')
+await C.page.keyboard.press('Escape')
+await C.page.getByRole('button', { name: 'Sair do jogo' }).click()
+await C.page.waitForSelector('.library')
+await C.page.evaluate(() => { window.__press = -1 })
 await play(C.page, 'Teste GB', 500)
 await C.page.evaluate(() => { window.__press = true })
 await sleep(1500)

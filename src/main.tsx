@@ -7,6 +7,7 @@ import { onFileChange } from './lib/db'
 import { loadLibrary } from './library/library'
 import { initSync, refreshPending, requestSync } from './sync/engine'
 import { App } from './ui/App'
+import { startGamepadNav } from './ui/gamepadNav'
 import { showToast, view } from './ui/store'
 import './styles.css'
 
@@ -16,6 +17,7 @@ async function boot() {
   await loadLibrary()
   await initSync()
   render(<App />, document.getElementById('app')!)
+  startGamepadNav()
   await initAuth()
 
   let wasSignedIn = false

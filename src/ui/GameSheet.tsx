@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks'
 import { SYSTEMS, SYSTEM_IDS, type SystemId } from '../config'
-import { gameKeyOf, type RomEntry } from '../library/library'
+import { activeFolders, createFolder, gameKeyOf, library, setRomFolder, type RomEntry } from '../library/library'
 import { changeSystem, evictRom, removeRom } from '../library/ops'
 import { restoreBackup } from '../library/saves'
 import { requestSync } from '../sync/engine'
@@ -44,6 +44,25 @@ export function GameSheet(p: { rom: RomEntry; onClose: () => void }) {
                   void run(async () => { setBusy('Movendo arquivos…'); setRom(await changeSystem(rom, sys, setBusy)) }, `Agora é ${SYSTEMS[sys].name}`)
                 }}>
                   {SYSTEM_IDS.map(s => <option key={s} value={s}>{SYSTEMS[s].name}</option>)}
+                </select>
+              </label>
+              <label>Pasta
+                <select value={rom.folder && library.value.folders[rom.folder] && !library.value.folders[rom.folder].deleted ? rom.folder : ''} disabled={!!busy} onChange={e => {
+                  const v = (e.target as HTMLSelectElement).value
+                  void run(async () => {
+                    let id: string | undefined = v || undefined
+                    if (v === '__new__') {
+                      const name = prompt(`Nome da nova pasta (${SYSTEMS[rom.system].short}):`)
+                      if (!name?.trim()) { setRom({ ...rom }); return }
+                      id = await createFolder(rom.system, name)
+                    }
+                    await setRomFolder(rom.path, id)
+                    setRom({ ...rom, folder: id })
+                  })
+                }}>
+                  <option value="">Nenhuma</option>
+                  {activeFolders(rom.system).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                  <option value="__new__">＋ Nova pasta…</option>
                 </select>
               </label>
               <p class="muted small">Arquivo: ROMs/{rom.system}/{rom.fileName}</p>

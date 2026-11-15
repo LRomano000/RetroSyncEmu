@@ -25,10 +25,10 @@ export interface GameSettings {
 }
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
-  autosaveInterval: 60,
+  autosaveInterval: 600,
   autosaveOnExit: true,
   autoLoad: 'last-any',
-  backupInterval: 60,
+  backupInterval: 600,
   backupKeep: 10,
 }
 
@@ -51,6 +51,15 @@ export interface RomEntry extends Stamped {
   md5?: string
   addedAt: number
   lastPlayed?: number
+  /** Pasta personalizada (id em `folders`), dentro do sistema da ROM. */
+  folder?: string
+}
+
+export interface FolderEntry extends Stamped {
+  id: string
+  name: string
+  system: SystemId
+  createdAt: number
 }
 
 export interface GameEntry extends Stamped {
@@ -64,11 +73,12 @@ export interface Library {
   /** Chave = gameKey (<sistema>/<nome-base>). */
   games: Record<string, GameEntry>
   pads: Record<string, { mapping: PadMapping } & Stamped>
+  folders: Record<string, FolderEntry>
   settings: { defaults: GameSettings } & Stamped
 }
 
 export function emptyLibrary(): Library {
-  return { version: 1, roms: {}, games: {}, pads: {}, settings: { defaults: { ...DEFAULT_GAME_SETTINGS }, updatedAt: 0 } }
+  return { version: 1, roms: {}, games: {}, pads: {}, folders: {}, settings: { defaults: { ...DEFAULT_GAME_SETTINGS }, updatedAt: 0 } }
 }
 
 export const library = signal<Library>(emptyLibrary())
@@ -86,12 +96,15 @@ export async function loadLibrary() {
 
 function normalize(l: Partial<Library>): Library {
   const e = emptyLibrary()
+  // Padrões nunca alterados pelo usuário (updatedAt 0) acompanham os padrões atuais do app.
+  const userDefaults = l.settings && l.settings.updatedAt > 0 ? l.settings.defaults : {}
   return {
     version: 1,
     roms: l.roms ?? e.roms,
     games: l.games ?? e.games,
     pads: l.pads ?? e.pads,
-    settings: { ...e.settings, ...l.settings, defaults: { ...DEFAULT_GAME_SETTINGS, ...l.settings?.defaults } },
+    folders: l.folders ?? e.folders,
+    settings: { ...e.settings, ...l.settings, defaults: { ...DEFAULT_GAME_SETTINGS, ...userDefaults } },
   }
 }
 
@@ -120,6 +133,7 @@ export function mergeLibraries(a: Library, b: Library): Library {
     roms: mergeMap(a.roms, b.roms),
     games: mergeMap(a.games, b.games),
     pads: mergeMap(a.pads, b.pads),
+    folders: mergeMap(a.folders, b.folders),
     settings: b.settings.updatedAt > a.settings.updatedAt ? b.settings : a.settings,
   }
 }
@@ -159,4 +173,42 @@ export function setPadMapping(system: SystemId, mapping: PadMapping) {
 
 export function activeRoms(): RomEntry[] {
   return Object.values(library.value.roms).filter(r => !r.deleted && SYSTEMS[r.system])
+}
+
+/** Remove as configurações individuais de todos os jogos: todos passam a usar os padrões. */
+export function applyDefaultsToAllGames() {
+  return updateLibrary(l => {
+    const now = Date.now()
+    for (const [k, g] of Object.entries(l.games)) if (!g.deleted) l.games[k] = { ...g, settings: {}, deleted: true, updatedAt: now }
+  })
+}
+
+export function activeFolders(system?: SystemId): FolderEntry[] {
+  return Object.values(library.value.folders)
+    .filter(f => !f.deleted && (!system || f.system === system))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function createFolder(system: SystemId, name: string) {
+  const id = `${system}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+  const now = Date.now()
+  return updateLibrary(l => { l.folders[id] = { id, name: name.trim(), system, createdAt: now, updatedAt: now } }).then(() => id)
+}
+
+export function renameFolder(id: string, name: string) {
+  return updateLibrary(l => { const f = l.folders[id]; if (f) l.folders[id] = { ...f, name: name.trim(), updatedAt: Date.now() } })
+}
+
+/** Apaga a pasta; os jogos só saem dela. */
+export function deleteFolder(id: string) {
+  return updateLibrary(l => {
+    const now = Date.now()
+    const f = l.folders[id]
+    if (f) l.folders[id] = { ...f, deleted: true, updatedAt: now }
+    for (const [p, r] of Object.entries(l.roms)) if (r.folder === id) l.roms[p] = { ...r, folder: undefined, updatedAt: now }
+  })
+}
+
+export function setRomFolder(romPath: string, folder: string | undefined) {
+  return updateLibrary(l => { const r = l.roms[romPath]; if (r) l.roms[romPath] = { ...r, folder, updatedAt: Date.now() } })
 }

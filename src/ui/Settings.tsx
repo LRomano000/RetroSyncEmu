@@ -1,18 +1,35 @@
 import { useEffect, useState } from 'preact/hooks'
 import { authState, getClientId, setClientId, signIn, signOut, userEmail } from '../drive/auth'
 import { deviceName, formatAgo, formatBytes, setDeviceName } from '../lib/util'
-import { library, setDefaultSettings } from '../library/library'
+import { SYSTEMS, SYSTEM_IDS, type SystemId } from '../config'
+import { listFileMeta } from '../lib/db'
+import { applyDefaultsToAllGames, library, setDefaultSettings } from '../library/library'
 import { changeRootFolder, requestSync, rootFolderName, syncStatus } from '../sync/engine'
 import { SettingsForm } from './GameParts'
 import { GamepadMapper } from './GamepadMapper'
 import { KEYBOARD } from '../emulator/session'
-import { showToast } from './store'
+import { showToast, view } from './store'
+
+type Usage = Record<SystemId, { roms: number; saves: number; states: number; backups: number }>
+
+async function usageBySystem(): Promise<Usage> {
+  const u = Object.fromEntries(SYSTEM_IDS.map(s => [s, { roms: 0, saves: 0, states: 0, backups: 0 }])) as Usage
+  for (const f of await listFileMeta('')) {
+    const m = f.path.match(/^(ROMs|Saves|States|Backups)\/(gb|gbc|gba|snes)\//)
+    if (!m) continue
+    const key = m[1].toLowerCase() as keyof Usage[SystemId]
+    u[m[2] as SystemId][key] += f.size
+  }
+  return u
+}
 
 export function Settings() {
   const [clientId, setCid] = useState(getClientId())
   const [root, setRoot] = useState(rootFolderName())
   const [device, setDevice] = useState(deviceName())
   const [storage, setStorage] = useState<{ persisted: boolean; usage: number; quota: number } | null>(null)
+  const [usage, setUsage] = useState<Usage | null>(null)
+  const [advanced, setAdvanced] = useState(!import.meta.env.VITE_GOOGLE_CLIENT_ID && !getClientId())
   const a = authState.value
   const s = syncStatus.value
 
@@ -21,6 +38,7 @@ export function Settings() {
       const persisted = (await navigator.storage?.persisted?.()) ?? false
       const est = (await navigator.storage?.estimate?.()) ?? {}
       setStorage({ persisted, usage: est.usage ?? 0, quota: est.quota ?? 0 })
+      setUsage(await usageBySystem())
     })()
   }, [])
 
@@ -28,7 +46,10 @@ export function Settings() {
 
   return (
     <section class="settings">
-      <h1>Configurações</h1>
+      <div class="page-head">
+        <button class="icon-btn" aria-label="Voltar" title="Voltar" onClick={() => (view.value = { name: 'library' })}>←</button>
+        <h1>Configurações</h1>
+      </div>
 
       <div class="card">
         <h2>Google Drive</h2>
@@ -41,16 +62,22 @@ export function Settings() {
           }}>{a === 'expired' ? 'Reconectar' : 'Entrar com Google'}</button>}
           {(a === 'signed-in' || a === 'expired') && <button class="btn ghost" onClick={() => { if (confirm('Desconectar do Google? Os arquivos continuam no aparelho e no Drive.')) signOut() }}>Desconectar</button>}
         </div>
-        <label>Client ID do Google (OAuth)
-          <input value={clientId} placeholder="123-abc.apps.googleusercontent.com" onInput={e => setCid((e.target as HTMLInputElement).value)} />
-        </label>
-        <button class="btn small" disabled={clientId.trim() === getClientId()} onClick={() => { setClientId(clientId); showToast('Client ID salvo') }}>Salvar Client ID</button>
         <label>Nome da pasta no Drive
           <input value={root} onInput={e => setRoot((e.target as HTMLInputElement).value)} />
         </label>
         <button class="btn small" disabled={root.trim() === rootFolderName() || !root.trim()} onClick={() => {
           if (confirm(`Usar a pasta "${root}"? Se ela não existir, será criada e seus arquivos locais serão enviados para ela.`)) void changeRootFolder(root)
         }}>Trocar pasta</button>
+        <button class="link small" onClick={() => setAdvanced(a => !a)}>{advanced ? 'Ocultar avançado' : 'Avançado…'}</button>
+        {advanced && (
+          <>
+            <label>Client ID do Google (OAuth)
+              <input value={clientId} placeholder="123-abc.apps.googleusercontent.com" onInput={e => setCid((e.target as HTMLInputElement).value)} />
+            </label>
+            <p class="muted small">Identifica o seu projeto no Google Cloud. No app publicado ele já vem configurado; só é preciso informar aqui ao rodar o app localmente.</p>
+            <button class="btn small" disabled={clientId.trim() === getClientId()} onClick={() => { setClientId(clientId); showToast('Client ID salvo') }}>Salvar Client ID</button>
+          </>
+        )}
       </div>
 
       <div class="card">
@@ -67,6 +94,9 @@ export function Settings() {
         <h2>Padrões para jogos novos</h2>
         <p class="muted small">Cada jogo pode ter as próprias configurações (menu ⋯ do jogo ou menu dentro do jogo).</p>
         <SettingsForm value={library.value.settings.defaults} onChange={patch => void setDefaultSettings(patch)} />
+        <button class="btn" onClick={() => {
+          if (confirm('Aplicar estes padrões a todos os jogos? As configurações individuais de cada jogo serão removidas.')) void applyDefaultsToAllGames().then(() => showToast('Padrões aplicados a todos os jogos'))
+        }}>Aplicar para todos os jogos</button>
       </div>
 
       <div class="card">
@@ -87,6 +117,18 @@ export function Settings() {
             }}>Pedir de novo</button></>}
           </p>
         ) : <p class="muted">…</p>}
+        {usage && (
+          <table class="usage">
+            <thead><tr><th>Sistema</th><th>ROMs</th><th>Saves</th><th>States</th><th>Backups</th><th>Total</th></tr></thead>
+            <tbody>
+              {SYSTEM_IDS.map(sys => {
+                const u = usage[sys]; const t = u.roms + u.saves + u.states + u.backups
+                return t > 0 && <tr key={sys}><td>{SYSTEMS[sys].short}</td><td>{formatBytes(u.roms)}</td><td>{formatBytes(u.saves)}</td><td>{formatBytes(u.states)}</td><td>{formatBytes(u.backups)}</td><td><b>{formatBytes(t)}</b></td></tr>
+              })}
+            </tbody>
+          </table>
+        )}
+        <p class="muted small">Para liberar espaço de uma ROM, use ⋯ → "Liberar espaço neste aparelho" na biblioteca.</p>
       </div>
 
       <div class="card">

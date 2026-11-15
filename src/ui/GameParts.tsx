@@ -4,8 +4,8 @@ import { AUTOLOAD_LABEL, gameSettings, setGameSettings, type AutoLoadMode, type 
 import { listBackups, listStates, removeBackup, removeState, type BackupInfo, type StateInfo } from '../library/saves'
 import { useBlobUrl, useFilesVersion } from './hooks'
 
-export const AUTOSAVE_OPTIONS = [0, 30, 60, 120, 180, 300]
-export const BACKUP_OPTIONS = [0, 10, 30, 60, 120, 300]
+export const AUTOSAVE_OPTIONS = [0, 30, 60, 120, 180, 300, 600, 1200, 1800]
+export const BACKUP_OPTIONS = [0, 10, 30, 60, 120, 300, 600, 1200, 1800]
 export const KEEP_OPTIONS = [3, 5, 10, 20, 50]
 
 export function secondsLabel(s: number) {
@@ -19,10 +19,23 @@ export function StatesList(p: { gameKey: string; onLoad: (s: StateInfo) => void;
   useEffect(() => { void listStates(p.gameKey).then(setStates) }, [p.gameKey, v])
   if (!states) return <p class="muted">Carregando…</p>
   if (!states.length) return <p class="muted">Nenhum save state ainda.</p>
+  const groups: [string, StateInfo[]][] = [
+    ['Manuais', states.filter(s => s.kind === 'manual')],
+    ['Automáticos (autosave)', states.filter(s => s.kind === 'auto')],
+  ]
   return (
-    <ul class="state-list">
-      {states.map(s => <StateRow key={s.path} s={s} onLoad={() => p.onLoad(s)} loadLabel={p.loadLabel} />)}
-    </ul>
+    <>
+      {groups.map(([label, list]) => (
+        <section key={label} class="state-group">
+          <h3>{label} <span class="muted">({list.length})</span></h3>
+          {list.length ? (
+            <ul class="state-list">
+              {list.map(s => <StateRow key={s.path} s={s} onLoad={() => p.onLoad(s)} loadLabel={p.loadLabel} />)}
+            </ul>
+          ) : <p class="muted small">Nenhum.</p>}
+        </section>
+      ))}
+    </>
   )
 }
 

@@ -93,7 +93,7 @@ export async function changeSystem(rom: RomEntry, system: SystemId, onProgress?:
   }
   await deleteFile(rom.path)
   const now = Date.now()
-  const moved: RomEntry = { ...rom, path: newPath, system, fileName, updatedAt: now }
+  const moved: RomEntry = { ...rom, path: newPath, system, fileName, folder: undefined, updatedAt: now }
   await updateLibrary(l => {
     l.roms[rom.path] = { ...rom, deleted: true, updatedAt: now }
     l.roms[newPath] = moved
