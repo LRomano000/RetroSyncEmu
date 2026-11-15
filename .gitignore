@@ -2,3 +2,4 @@ node_modules
 dist
 tests/last-library.png
 .env.local
+RetroSync-projeto.zip
