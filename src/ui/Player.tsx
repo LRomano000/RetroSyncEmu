@@ -40,6 +40,7 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
         await session.start(m => !cancelled && setLoading(m), { state: p.state, fresh: p.fresh, sramOnly: p.sramOnly })
         if (cancelled) { await session.close(); return }
         sessionRef.current = session
+        ;(window as any).__rsSession = session // usado pelos testes automatizados
         fit()
         setLoading('')
         const lf = session.loadedFrom
@@ -140,7 +141,7 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
             )}
             {panel === 'states' && (
               <div class="menu-scroll">
-                <StatesList gameKey={sessionRef.current!.gameKey} loadLabel="Carregar" onLoad={s => void act(async () => { await sessionRef.current!.loadState(s); closeMenu() }, 'Save state carregado')} />
+                <StatesList gameKey={sessionRef.current!.gameKey} loadLabel="Carregar" onLoad={s => void act(async () => { closeMenu(); await sessionRef.current!.loadState(s) }, 'Save state carregado')} />
               </div>
             )}
             {panel === 'backups' && (

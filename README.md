@@ -193,6 +193,10 @@ npm run build && npx vite preview --port 5199
 node tests/e2e.mjs
 ```
 
+```bash
+node tests/pause.mjs
+```
+
   (o último comando em outro terminal; requer Playwright instalado). As ROMs de teste são
   homebrew mínimas geradas pelo script, sem nenhum conteúdo comercial.
 
