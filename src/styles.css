@@ -161,3 +161,8 @@ input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); }
   max-width: min(92vw, 560px); box-shadow: 0 6px 24px rgba(0,0,0,.4);
 }
 .toast-error { border-color: var(--danger); }
+
+/* Foco visível para navegação por controle/teclado dentro do menu do jogo */
+.game-menu :is(button, select, input):focus { outline: 3px solid var(--accent2); outline-offset: 2px; }
+.game-menu .btn.primary:focus { outline-color: #fff; }
+.version { font-weight: 400; color: var(--muted); font-size: .75rem; margin-left: 8px; }

@@ -5,7 +5,7 @@ import { sleep } from '../lib/util'
 import { gameKeyOf, gameSettings, updateLibrary, type GameSettings, type RomEntry } from '../library/library'
 import { listStates, readSram, writeBackup, writeSram, writeState, type SramBundle, type StateInfo } from '../library/saves'
 import { ensureRomLocal } from '../sync/engine'
-import { GamepadBridge } from './gamepad'
+import { GamepadBridge, type UiAction } from './gamepad'
 import { sramFromMgbaState } from './mgba-state'
 
 const BASE = import.meta.env.BASE_URL
@@ -38,6 +38,7 @@ export class GameSession {
    */
   private sramFromState = false
   onMenuButton: () => void = () => {}
+  onUiAction: (a: UiAction) => void = () => {}
 
   constructor(readonly rom: RomEntry, private canvas: HTMLCanvasElement) {
     this.gameKey = gameKeyOf(rom.system, rom.fileName)
@@ -113,6 +114,7 @@ export class GameSession {
       if (e) l.roms[this.rom.path] = { ...e, lastPlayed: Date.now(), updatedAt: Date.now() }
     })
     this.pad = new GamepadBridge(this.rom.system, this.n, () => this.onMenuButton())
+    this.pad.onUi = a => this.onUiAction(a)
     this.pad.start()
     this.scheduleTimers()
   }
@@ -208,10 +210,12 @@ export class GameSession {
    */
   pause() {
     this.paused = true
+    this.pad?.setMode('ui')
     try { (this.n?.getEmscriptenModule() as any)?._cmd_pause?.() } catch { /* emulador não pronto */ }
   }
   resume() {
     this.paused = false
+    this.pad?.setMode('game')
     try { (this.n?.getEmscriptenModule() as any)?._cmd_unpause?.() } catch { /* emulador não pronto */ }
   }
   restart() { this.n?.restart(); this.resume() }

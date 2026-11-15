@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { SYSTEMS } from '../config'
 import { authState } from '../drive/auth'
+import type { UiAction } from '../emulator/gamepad'
 import { GameSession } from '../emulator/session'
 import { sleep } from '../lib/util'
 import type { RomEntry } from '../library/library'
@@ -29,6 +30,7 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
     let cancelled = false
     const session = new GameSession(p.rom, canvasRef.current!)
     session.onMenuButton = () => (menuOpen.current ? closeMenu() : openMenu())
+    session.onUiAction = a => navigateMenu(a)
     ;(async () => {
       try {
         if (navigator.onLine && authState.value === 'signed-in') {
@@ -66,6 +68,45 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
 
   const menuOpen = useRef(false)
   menuOpen.current = menu
+  const menuRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<Panel>('main')
+  panelRef.current = panel
+
+  /** Navegação do menu pelo controle: direcional move o foco, A confirma, B volta/fecha. */
+  const navigateMenu = (a: UiAction) => {
+    if (!menuOpen.current) return
+    const root = menuRef.current
+    if (!root) return
+    const items = [...root.querySelectorAll<HTMLElement>('button, select, input')].filter(el => !el.hasAttribute('disabled') && el.offsetParent !== null)
+    if (!items.length) return
+    const active = document.activeElement as HTMLElement | null
+    let i = items.indexOf(active!)
+    const focus = (el: HTMLElement) => { el.focus(); el.scrollIntoView({ block: 'nearest' }) }
+    if (a === 'up' || a === 'down') {
+      if (i < 0) i = a === 'down' ? -1 : 0
+      focus(items[(i + (a === 'down' ? 1 : items.length - 1)) % items.length])
+    } else if (a === 'left' || a === 'right') {
+      if (active instanceof HTMLSelectElement) {
+        const n = active.options.length
+        active.selectedIndex = (active.selectedIndex + (a === 'right' ? 1 : n - 1)) % n
+        active.dispatchEvent(new Event('change', { bubbles: true }))
+      } else if (i < 0) focus(items[0])
+    } else if (a === 'confirm') {
+      if (i < 0) focus(items[0])
+      else if (active instanceof HTMLInputElement && active.type === 'checkbox') active.click()
+      else if (!(active instanceof HTMLSelectElement)) active!.click()
+    } else if (a === 'back') {
+      if (panelRef.current !== 'main') setPanel('main')
+      else closeMenu()
+    }
+  }
+
+  // Ao abrir o menu (ou trocar de painel), foca o primeiro item para o controle já poder navegar.
+  useEffect(() => {
+    if (!menu) return
+    const t = setTimeout(() => menuRef.current?.querySelector<HTMLElement>('.menu-list button, .menu-scroll button, .menu-scroll select')?.focus(), 30)
+    return () => clearTimeout(t)
+  }, [menu, panel])
 
   const fit = () => {
     const w = wrapRef.current
@@ -113,15 +154,15 @@ export function Player(p: { rom: RomEntry; state?: StateInfo; fresh?: boolean; s
               <p class="error">Não foi possível abrir o jogo: {error}</p>
               <button class="btn" onClick={() => void exit()}>Voltar à biblioteca</button>
             </div>
-          ) : <div class="overlay-box"><div class="spinner" /><p>{loading}</p></div>}
+          ) : <div class="overlay-box"><div class="spinner" /><p>{loading}</p><p class="muted small">RetroSync v{__APP_VERSION__}</p></div>}
         </div>
       )}
       {menu && (
         <div class="overlay menu-overlay" onClick={e => { if (e.target === e.currentTarget) closeMenu() }}>
-          <div class="game-menu" role="dialog" aria-label="Menu do jogo">
+          <div class="game-menu" role="dialog" aria-label="Menu do jogo" ref={menuRef}>
             <header class="modal-head">
               {panel !== 'main' ? <button class="icon-btn" onClick={() => setPanel('main')} aria-label="Voltar">←</button> : null}
-              <h2>{panel === 'main' ? title : panel === 'states' ? 'Save states' : panel === 'backups' ? 'Backups do save' : 'Configurações do jogo'}</h2>
+              <h2>{panel === 'main' ? title : panel === 'states' ? 'Save states' : panel === 'backups' ? 'Backups do save' : 'Configurações do jogo'}{panel === 'main' && <small class="version">v{__APP_VERSION__}</small>}</h2>
               <SyncBadge />
             </header>
             {panel === 'main' && (

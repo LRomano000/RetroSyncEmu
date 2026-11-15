@@ -218,12 +218,35 @@ await C.page.waitForSelector('.banner', { state: 'detached' })
 await waitSynced(C.page)
 await play(C.page, 'Teste GB', 500)
 await C.page.evaluate(() => { window.__press = true })
-await sleep(11500)
+await sleep(1500)
+// Lê a SRAM com o botão ainda apertado (o jogo de teste grava o estado dos botões em SRAM[3]).
+const padByte = await C.page.evaluate(async () => {
+  await window.__rsSession.flushSram()
+  const db = await new Promise(r => { const q = indexedDB.open('retrosync'); q.onsuccess = () => r(q.result) })
+  const f = await new Promise(r => { const q = db.transaction('files').objectStore('files').get('Saves/gbc/Teste GB.srm'); q.onsuccess = () => r(q.result) })
+  return new Uint8Array(await f.blob.arrayBuffer())[3]
+})
 await C.page.evaluate(() => { window.__press = false })
+check(padByte === 0xDE, `Gamepad: botão A do controle chegou ao jogo (SRAM[3]=0x${padByte?.toString(16)})`)
+// Com o menu aberto, o botão do controle não pode chegar ao jogo, e deve navegar o menu.
+await C.page.keyboard.press('Escape')
+await C.page.waitForSelector('.game-menu')
+const seen = await C.page.evaluate(async () => {
+  const seen = []
+  const h = e => seen.push(e.code)
+  window.addEventListener('keydown', h, true)
+  window.__press = true; await new Promise(r => setTimeout(r, 300)); window.__press = false
+  window.removeEventListener('keydown', h, true)
+  return seen
+})
+check(!seen.some(c => c === 'KeyX'), `Gamepad: com o menu aberto o botão não vai para o jogo (teclas vistas: ${seen.join(',') || 'nenhuma'})`)
+// Botão A (índice 1) confirma o item focado: o primeiro é "Continuar" -> menu fecha.
+await sleep(600)
+await C.page.evaluate(async () => { window.__press = true; await new Promise(r => setTimeout(r, 150)); window.__press = false })
+await sleep(300)
+check((await C.page.locator('.game-menu').count()) === 0, 'Gamepad: botão A confirma "Continuar" e fecha o menu')
 await exitGame(C.page)
 await waitSynced(C.page)
-const padByte = drive.byPath('Saves/gbc/Teste GB.srm')?.data?.[3]
-check(padByte === 0xDE, `Gamepad: botão A do controle chegou ao jogo (SRAM[3]=0x${padByte?.toString(16)})`)
 
 await A.page.screenshot({ path: process.env.SHOT || 'tests/last-library.png' })
 console.log('\nArquivos no Drive falso:\n  ' + drive.listPaths().join('\n  '))

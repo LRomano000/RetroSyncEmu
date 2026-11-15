@@ -13,7 +13,7 @@ export default defineConfig({
   plugins: [
     preact(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['icons/*.svg', 'icons/*.png'],
       manifest: {
         name: 'RetroSync',
@@ -39,6 +39,7 @@ export default defineConfig({
         navigateFallback: 'index.html',
         cleanupOutdatedCaches: true,
         clientsClaim: true,
+        skipWaiting: true,
       },
     }),
   ],
